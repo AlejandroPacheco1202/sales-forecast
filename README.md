@@ -83,9 +83,7 @@ ventas_diaria = total_mensual × (predicción_modelo_para_este_día / Σ predicc
   - `dow_mean4`: media del mismo día de semana en las últimas 4 semanas (patrón semanal)
   - `dow`, `mes`, `dia_mes`, `feriado`: features de calendario
 
-**¿Por qué pérdida Poisson?** La demanda es un conteo (enteros no negativos, muchos ceros). Poisson es el estándar para demanda retail; MSE permitiría predicciones negativas y maneja mal la escasez.
-
-**¿Por qué no ARIMA/SARIMA?** Esos modelos funcionan para *una* serie temporal continua. Aquí hay ~350 combinaciones producto-tienda con demanda intermitente (muchos días = 0). Gradient Boosting aprende de todas las series simultáneamente (aprendizaje cruzado), así que productos con poco histórico se benefician de patrones aprendidos en productos con alto volumen.
+**¿Por qué pérdida Poisson?** La demanda es un conteo (enteros no negativos, muchos ceros). Poisson es el estándar para demanda retail; MSE permitiría predicciones negativas y maneja mal la escasez (el entrenamiento del modelo se realizó con un informe de venta con valores negativos por devolución, por eso fue necesario utilizarla)
 
 ---
 
