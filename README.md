@@ -249,28 +249,4 @@ jupyter lab 05_presupuesto_final.ipynb
 
 ---
 
-## 💬 Preguntas Frecuentes
-
-**¿Por qué Poisson y no Gaussiano (MSE)?**  
-La demanda son conteos, no valores continuos. Poisson maneja naturalmente los ceros y valores no negativos.
-
-**¿Por qué shift(1) en ventanas móviles?**  
-Para evitar "ver el futuro" (fuga de datos). Los features deben usar solo información del pasado.
-
-**¿Puedo usar esto para el próximo año?**  
-Como está, los datos están anonimizados. Pero el **código y la metodología son totalmente portables**—ejecutalo con tus datos reales usando el mismo pipeline.
-
-**¿Qué si los patrones cambian?**  
-Posible drift del modelo. Solución: reentrenar trimestralmente o usar aprendizaje online (actualizar el modelo a medida que llegan datos nuevos).
-
----
-
-## 📄 Licencia
-
-Este proyecto se proporciona como **demostración de portfolio**. Los datos comerciales originales han sido anonimizados. La metodología y el código están disponibles como referencia y uso educativo.
-
----
-
-**Creado:** julio 2026  
 **Última actualización:** julio 2026  
-**Estado:** Completo (validado con backtest)
