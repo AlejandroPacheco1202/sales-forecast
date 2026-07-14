@@ -54,7 +54,7 @@ Base por producto = promedio de ventas, mayo-junio 2026, por tienda
 
 - Captura el momentum actual del negocio (2026 vende ~19% más que 2025)
 - Ancla en datos recientes, no en el pasado distante
-- Resultado: **~45.908 unidades/mes de base**
+- Resultado: **~##### unidades/mes de base**
 
 #### 2. **Forma: Estacionalidad Mensual** (¿Cuáles son los meses fuertes/débiles?)
 
