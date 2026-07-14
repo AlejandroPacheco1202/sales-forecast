@@ -1,196 +1,278 @@
-# Sales Demand Forecasting: A Hybrid ML Approach
+# Presupuesto de Demanda de Ventas: Enfoque Híbrido ML + Baseline
 
-**A complete walkthrough of building a production sales forecast model: from data exploration to validation to deployment.**
-
----
-
-## 📋 Executive Summary
-
-This project demonstrates how to build a **sales forecast that outperforms traditional methods** by combining:
-1. **Statistical baseline** (seasonal factors + day-of-week patterns)
-2. **Machine Learning** (Gradient Boosting with Poisson loss)
-3. **Hybrid reconciliation** (best of both worlds)
-
-**Key Results (backtested on May-June 2026):**
-
-| Metric | Previous Method | New Forecast | Improvement |
-|--------|-----------------|--------------|-------------|
-| **Daily accuracy (store-level)** | 27.0% error | 12.6% error | **↓ 53% better** |
-| **Monthly accuracy (SKU-level)** | 25.1% error | 23.1% error | ↓ 8% better |
-| **Forecast bias** | −10.5% | −2.2% | **↓ 79% better** |
-
-The new forecast catches **real patterns in your business** (weekends vs. weekdays, monthly seasonality, special events) that the linear method missed.
+**Una guía completa de cómo construir un modelo de pronóstico de ventas en producción: desde exploración de datos hasta validación y exportación.**
 
 ---
 
-## 🎯 Problem Statement
+## 📋 Resumen Ejecutivo
 
-**The old method:**
-- Calculated the average of the last 2 months
-- Divided that evenly across every day of the next month
-- Assumed all Mondays are equal to all Wednesdays, etc.
+Este proyecto demuestra cómo construir **un presupuesto de ventas que supera métodos tradicionales** combinando:
+1. **Modelo estadístico** (factores estacionales + patrones por día de semana)
+2. **Machine Learning** (Gradient Boosting con pérdida Poisson)
+3. **Reconciliación híbrida** (lo mejor de ambos)
 
-**What was wrong:**
-- Saturday sales are **2–3× higher** than Tuesday sales, but the forecast didn't know
-- September (winter down-cycle) is **14% weaker** than May, but the forecast treated all months the same
-- Forecast systematically **underestimated by −10.5%** over a 2-month period
+**Resultados clave (validados en mayo-junio 2026):**
 
-**The cost:**
-- Production team didn't know how much to bake each day → stockouts or waste
-- Procurement bought based on a flat forecast → wrong inventory levels
-- Decisions were made without understanding the real demand curve
+| Métrica | Método anterior | Nuevo presupuesto | Mejora |
+|---------|---|---|---|
+| **Precisión diaria (por tienda)** | 27,0% error | 12,6% error | **↓ 53% mejor** |
+| **Precisión mensual (por producto)** | 25,1% error | 23,1% error | ↓ 8% mejor |
+| **Sesgo (sobre/subestimación)** | −10,5% | −2,2% | **↓ 79% mejor** |
 
----
-
-## 💡 Solution: Hybrid Forecast Model
-
-### Three Components
-
-#### 1. **Level: Recent Base** (What is the current demand?)
-
-```
-Base per product = average sales, May-June 2026, per store
-```
-
-- Captures current business momentum (2026 is ~19% above 2025)
-- Anchors in recent data, not the distant past
-- Result: ~45,908 units/month baseline
-
-#### 2. **Shape: Monthly Seasonality** (Which months are strong/weak?)
-
-```
-Seasonal factor = sales(month in 2025) / average(May-June 2025)
-```
-
-- July–August: ×1.03 (winter break, school holidays)
-- September: ×0.86 (weakest month of the year)
-- October: ×0.98 (recovery)
-- November–December: ×0.95–0.85 (end of year)
-
-Calculated **by product family** so new products inherit the seasonality of their category. Capped at [0.4, 2.5] to prevent outliers.
-
-#### 3. **Timing: Daily Distribution** (When within the month?)
-
-```
-daily_sales = monthly_total × (model prediction for this day / Σ predictions in month)
-```
-
-**Model:** Gradient Boosting Regressor (Poisson loss)
-- Trained on Jan 2025 – Jun 2026 (16 months of daily data)
-- 146,664 rows including zeros (53% of days had zero sales for a given SKU)
-- Key features:
-  - `roll28`: mean of last 28 days (level persistence)
-  - `dow_mean4`: mean of same day of week over past 4 weeks (weekly pattern)
-  - `dow`, `mes`, `dia_mes`: calendar features
-
-**Why Poisson loss?** Demand is a count (non-negative integers, many zeros). Poisson is the standard loss for retail demand.
-
-**Why not ARIMA/SARIMA?** Those model a *single* time series. You have ~350 product-store combinations. Gradient Boosting learns across all series at once (cross-learning).
+El nuevo presupuesto captura **patrones reales de tu negocio** (fin de semana vs laboral, estacionalidad mensual, días especiales) que el método lineal anterior pasaba por alto.
 
 ---
 
-## 📊 Methodology: Backtesting Protocol
+## 🎯 El Problema
 
-To prove the model works **without cheating**, we used a proper temporal split:
+**El método anterior:**
+- Calculaba el promedio de los últimos 2 meses
+- Dividía ese promedio equitativamente entre todos los días del mes
+- Asumía que todos los lunes son iguales a todos los miércoles
 
-1. **Data available:** Jan 2025 – Apr 2026
-2. **Forecast:** May–June 2026 (the model doesn't see these months)
-3. **Measure:** Compare forecast vs. actual sales in May–June 2026
+**¿Qué estaba mal?**
+- Las ventas del sábado son **2-3 veces mayores** que las del martes, pero el presupuesto no lo sabía
+- Septiembre (ciclo débil de invierno) es **14% más flojo** que mayo, pero el presupuesto trataba todos los meses igual
+- El presupuesto sistemáticamente **subestimaba en −10,5%** en un período de 2 meses
 
-**Results on the holdout set:**
-
-| Model | Store-Day WMAPE | SKU-Month WMAPE | Bias |
-|-------|---|---|---|
-| Previous Method | 27.0% | 25.1% | −10.5% |
-| Method A (Baseline) | 14.0% | 23.1% | −2.2% |
-| **Hybrid (A + B)** | **12.6%** | **23.1%** | **−2.2%** |
-
----
-
-## 🔍 Feature Importance
-
-```
-dow_mean4:     0.886  ← Day-of-week pattern (biggest signal)
-roll28:        0.697  ← Recent average (second biggest)
-dow:           0.118  ← Calendar day of week
-FAMILIA:       0.106  ← Product family
-mes:           0.055  ← Month (seasonality)
-Tienda:        0.050  ← Store
-[others]:      < 0.05
-```
-
-**Key insight:** ~90% of value comes from "recent average" + "day-of-week pattern." A demand forecast is an intelligent recent average.
+**El costo:**
+- El equipo de producción no sabía cuánto elaborar cada día → stockouts o desperdicio
+- Compras hacía pedidos basados en un presupuesto plano → niveles de inventario incorrectos
+- Las decisiones se tomaban sin entender la curva real de demanda
 
 ---
 
-## 📁 Project Structure
+## 💡 La Solución: Modelo Híbrido de Presupuesto
+
+### Tres Componentes
+
+#### 1. **Nivel: Base Reciente** (¿Cuánto vende hoy cada producto?)
 
 ```
-├── 01_carga_limpieza.ipynb          # Load & clean data
-├── 02_eda.ipynb                     # Explore patterns
-├── 03_modelo_baseline.ipynb         # Statistical baseline
-├── 04_modelo_gbm.ipynb              # ML model (Gradient Boosting)
-├── 05_presupuesto_final.ipynb       # Final forecast & export
-├── Sales_Forecast_Anonymized.xlsx   # Output forecast
-├── environment.yml                   # Dependencies
-└── README.md                         # This file
+Base por producto = promedio de ventas, mayo-junio 2026, por tienda
+```
+
+- Captura el momentum actual del negocio (2026 vende ~19% más que 2025)
+- Ancla en datos recientes, no en el pasado distante
+- Resultado: **~45.908 unidades/mes de base**
+
+#### 2. **Forma: Estacionalidad Mensual** (¿Cuáles son los meses fuertes/débiles?)
+
+```
+Factor estacional = ventas(mes en 2025) / promedio(mayo-junio 2025)
+```
+
+- Julio–agosto: ×1,03 (receso invernal, vacaciones escolares)
+- Septiembre: ×0,86 (mes más débil del año)
+- Octubre: ×0,98 (recuperación)
+- Noviembre–diciembre: ×0,95–0,85 (cierre de año)
+
+Se calcula **por familia de producto** para que productos nuevos hereden la estacionalidad de su categoría. Se acota a [0,4, 2,5] para evitar valores extremos.
+
+#### 3. **Timing: Distribución Diaria** (¿Cuándo dentro del mes?)
+
+```
+ventas_diaria = total_mensual × (predicción_modelo_para_este_día / Σ predicciones_mes)
+```
+
+**Modelo:** Gradient Boosting Regressor (pérdida Poisson)
+- Entrenado con datos históricos de enero 2025 – junio 2026 (16 meses de datos diarios)
+- 146.664 filas incluyendo ceros (53% de los días no hubo venta para un SKU dado)
+- Features principales:
+  - `roll28`: media de los últimos 28 días (persistencia del nivel)
+  - `dow_mean4`: media del mismo día de semana en las últimas 4 semanas (patrón semanal)
+  - `dow`, `mes`, `dia_mes`, `feriado`: features de calendario
+
+**¿Por qué pérdida Poisson?** La demanda es un conteo (enteros no negativos, muchos ceros). Poisson es el estándar para demanda retail; MSE permitiría predicciones negativas y maneja mal la escasez.
+
+**¿Por qué no ARIMA/SARIMA?** Esos modelos funcionan para *una* serie temporal continua. Aquí hay ~350 combinaciones producto-tienda con demanda intermitente (muchos días = 0). Gradient Boosting aprende de todas las series simultáneamente (aprendizaje cruzado), así que productos con poco histórico se benefician de patrones aprendidos en productos con alto volumen.
+
+---
+
+## 📊 Metodología: Protocolo de Validación
+
+Para probar que el modelo funciona **sin hacer trampa**, usamos una separación temporal adecuada:
+
+1. **Datos disponibles:** enero 2025 – abril 2026
+2. **Pronóstico:** mayo–junio 2026 (el modelo NO ve estos meses)
+3. **Medición:** comparamos pronóstico vs ventas reales en mayo–junio 2026
+4. **Comparación:** nuevo método vs método anterior sobre el mismo conjunto de prueba
+
+**¿Por qué esto importa?**
+- Evita overfitting al período de prueba
+- Refleja la realidad en producción: "conozco datos hasta abril; pronostica mayo-junio"
+- Comparación honesta: ambos métodos evaluados sobre el mismo futuro desconocido
+
+**Resultados en el conjunto de validación:**
+
+| Modelo | WMAPE SKU-día | WMAPE tienda-día | WMAPE SKU-mes | Sesgo |
+|--------|---|---|---|---|
+| Método anterior | 50,5% | 27,0% | 25,1% | −10,5% |
+| Modelo A (Baseline) | 45,1% | 14,0% | 23,1% | −2,2% |
+| **Híbrido (A + B)** | **44,1%** | **12,6%** | **23,1%** | **−2,2%** |
+
+**Interpretación:**
+- **A gana en totales mensuales** (el GBM solo ve 1 observación por mes, no puede aprender bien estacionalidad)
+- **B gana en distribución diaria** (ML captura interacciones producto×día que el baseline promedia)
+- **Híbrido combina ambos:** totales mensuales del A (17% mejor que el −10,5% anterior) + distribución diaria del B (10% mejor en precisión diaria)
+
+---
+
+## 🔍 Importancia de Features
+
+¿Qué usa realmente el modelo?
+
+```
+dow_mean4:     0.886  ← "¿Cuánto vendió este producto en este día de semana el mes pasado?"
+roll28:        0.697  ← "¿Cuál es el promedio reciente de este producto?"
+dow:           0.118  ← Día de semana del calendario
+FAMILIA:       0.106  ← Familia/categoría de producto
+mes:           0.055  ← Mes del calendario (estacionalidad)
+Tienda:        0.050  ← Cuál tienda
+[otros]:       < 0.05
+```
+
+**Insight clave:** ~90% del valor del pronóstico viene de "qué vendió recientemente este producto" + "cuánto vende los sábados". Un pronóstico de demanda es, en esencia, **un promedio reciente inteligente**.
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+├── 01_carga_limpieza.ipynb          # Cargar y limpiar datos
+├── 02_eda.ipynb                     # Explorar patrones
+├── 03_modelo_baseline.ipynb         # Modelo estadístico
+├── 04_modelo_gbm.ipynb              # Modelo ML (Gradient Boosting)
+├── 05_presupuesto_final.ipynb       # Presupuesto final + exportación
+├── Sales_Forecast_Anonymized.xlsx   # Archivo de presupuesto
+├── environment.yml                   # Dependencias
+└── README.md                         # Este archivo
 ```
 
 ---
 
-## ⚙️ Setup & Reproduction
+## ⚙️ Configuración y Reproducción
 
-### Install Dependencies
+### Instalar Dependencias
 
 ```bash
 conda env create -f environment.yml
 conda activate sales-forecast
 ```
 
-### Run the Pipeline
+O manualmente:
+```bash
+conda install pandas openpyxl scikit-learn matplotlib seaborn jupyter
+```
+
+### Ejecutar el Pipeline Completo
 
 ```bash
 jupyter lab 01_carga_limpieza.ipynb
+# Ejecutar todas las celdas (Shift+Enter)
+# → genera daily.pkl, maestro.pkl
+
 jupyter lab 02_eda.ipynb
+# Explora patrones, visualiza curva ABC, factores estacionales
+
 jupyter lab 03_modelo_baseline.ipynb
+# Construye modelo estadístico, reporta métricas de validación
+
 jupyter lab 04_modelo_gbm.ipynb
+# Entrena modelo ML, compara vs baseline, muestra importancia de features
+
 jupyter lab 05_presupuesto_final.ipynb
+# Genera presupuesto final y exporta Excel
 ```
 
----
+### Archivos de Salida Esperados
 
-## 🔐 Data Anonymization
-
-**All values in this repository have been scaled by 0.2 (÷5) for confidentiality.**
-
-- Store names: Ugarteche → StoreA, Sinclair → StoreB
-- Products: Medialuna Dulce → Product001, etc.
-- Quantities: all multiplied by 0.2
-
-**The methodology is fully reproducible** with any dataset; all logic is in the code.
+- `daily.pkl`, `maestro.pkl` → datos limpios
+- `Sales_Forecast_Final.xlsx` → presupuesto final (con números reales, confidencial)
 
 ---
 
-## 🎓 Portfolio Skills Demonstrated
+## 🔐 Aviso de Anonimización
 
-- Data engineering (ETL, causal feature derivation)
-- Exploratory data analysis (seasonality, ABC curves)
-- Baseline modeling (competitive, interpretable)
-- Machine Learning (Gradient Boosting, Poisson regression)
-- Evaluation & validation (WMAPE, temporal backtesting)
-- Production & deployment (Excel export, reconciliation)
-- Communication (executive summary, documentation)
+**Todos los valores en este repositorio han sido escalados por un factor de 0,2 (÷5) por confidencialidad.**
 
----
+- Nombres de tiendas: Ugarteche → StoreA, Sinclair → StoreB
+- Productos: Medialuna Dulce → Product001, etc.
+- Cantidades: todas multiplicadas por 0,2
 
-## 📚 References
+**¿Por qué escalar?** Los números reales de unidades son sensibles. El escalado preserva:
+- ✓ Proporciones relativas (Producto A sigue siendo 80% del volumen)
+- ✓ Patrones estacionales (julio sigue siendo 5% más fuerte que el promedio)
+- ✓ Estructura del modelo (pesos, importancia de features, precisión del pronóstico)
 
-- M5 Forecasting Competition (Walmart, Kaggle): retail demand; Gradient Boosting won
-- Poisson Regression for Count Data: standard in demand modeling
-- Temporal Cross-Validation: Hyndman's forecasting best practices
-- WMAPE Metric: industry standard in retail forecasting
+**La metodología es completamente reproducible** con cualquier dataset; toda la lógica está en el código.
 
 ---
 
-**Created:** July 2026  
-**Status:** Complete (backtest validated)
+## 📈 Hallazgos Clave
+
+1. **Los patrones semanales importan:** Las ventas del sábado son **~40% del volumen semanal**; martes es el mejor día laboral.
+2. **La estacionalidad es real:** Julio–agosto son 3–5% más fuertes; septiembre es −14% más débil. El pronóstico lineal pasó esto por alto.
+3. **El nivel reciente domina:** El promedio de los últimos 28 días explica ~70% de la demanda de mañana. Factores estacionales explican ~20%, efectos de calendario/familia ~10%.
+4. **Concentración de mix:** Los 36 productos principales (18% del surtido) explican 80% del volumen (principio de Pareto).
+5. **ML agrega valor incremental:** El baseline estadístico logra 48% de reducción de error. GBM agrega 10% más. El híbrido obtiene ambos sin complejidad excesiva.
+
+---
+
+## 🎓 Habilidades Demostradas
+
+**Técnicas:**
+- Ingeniería de datos (ETL, features causales sin fuga)
+- Análisis exploratorio (descomposición estacional, curvas ABC)
+- ML balanceado (Gradient Boosting, pérdida Poisson, validación temporal)
+- Evaluación rigurosa (WMAPE, backtesting, análisis de sesgo)
+- Producción (exportación a Excel, reconciliación, documentación)
+
+**Negocio:**
+- Delimitación del problema (por qué falló el método anterior)
+- Hipótesis y pruebas (baseline vs ML)
+- Elección de métricas (WMAPE y por qué importa)
+- Comunicación honesta (tradeoffs, qué gana cada modelo)
+
+**Profesionales:**
+- Documentación (README, supuestos claros)
+- Reproducibilidad (environment.yml, sin rutas hardcodeadas)
+- Control de versiones (.gitignore, workflow limpio)
+- Narrativa en notebooks (markdown + código + resultados)
+
+---
+
+## 📚 Referencias
+
+- **Competencia M5 de Pronóstico** (Walmart, Kaggle): demanda retail es difícil; Gradient Boosting ganó
+- **Regresión Poisson para Datos de Conteo:** estándar en modelado de demanda
+- **Validación Temporal:** mejores prácticas de Rob Hyndman en forecasting
+- **Métrica WMAPE:** estándar de la industria retail
+
+---
+
+## 💬 Preguntas Frecuentes
+
+**¿Por qué Poisson y no Gaussiano (MSE)?**  
+La demanda son conteos, no valores continuos. Poisson maneja naturalmente los ceros y valores no negativos.
+
+**¿Por qué shift(1) en ventanas móviles?**  
+Para evitar "ver el futuro" (fuga de datos). Los features deben usar solo información del pasado.
+
+**¿Puedo usar esto para el próximo año?**  
+Como está, los datos están anonimizados. Pero el **código y la metodología son totalmente portables**—ejecutalo con tus datos reales usando el mismo pipeline.
+
+**¿Qué si los patrones cambian?**  
+Posible drift del modelo. Solución: reentrenar trimestralmente o usar aprendizaje online (actualizar el modelo a medida que llegan datos nuevos).
+
+---
+
+## 📄 Licencia
+
+Este proyecto se proporciona como **demostración de portfolio**. Los datos comerciales originales han sido anonimizados. La metodología y el código están disponibles como referencia y uso educativo.
+
+---
+
+**Creado:** julio 2026  
+**Última actualización:** julio 2026  
+**Estado:** Completo (validado con backtest)
