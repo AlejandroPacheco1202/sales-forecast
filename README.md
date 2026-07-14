@@ -19,7 +19,7 @@ Este proyecto demuestra cómo construir **un presupuesto de ventas que supera m�
 | **Precisión mensual (por producto)** | 25,1% error | 23,1% error | ↓ 8% mejor |
 | **Sesgo (sobre/subestimación)** | −10,5% | −2,2% | **↓ 79% mejor** |
 
-El nuevo presupuesto captura **patrones reales de tu negocio** (fin de semana vs laboral, estacionalidad mensual, días especiales) que el método lineal anterior pasaba por alto.
+El nuevo presupuesto captura **patrones reales de negocio** (fin de semana vs laboral, estacionalidad mensual, días especiales) que el método lineal anterior pasaba por alto.
 
 ---
 
