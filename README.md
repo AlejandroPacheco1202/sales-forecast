@@ -1,6 +1,6 @@
 # Presupuesto de Demanda de Ventas: Enfoque Híbrido ML + Baseline
 
-**Una guía completa de cómo construir un modelo de pronóstico de ventas en producción: desde exploración de datos hasta validación y exportación.**
+**Una guía completa de cómo construir un modelo de pronóstico de ventas en producción: desde exploración de datos hasta validación y exportación. Dado que es un proyecto real de mi trabajo, todos los datos sensibles están anonimizados y factorizados para mantener confidencialidad**
 
 ---
 
