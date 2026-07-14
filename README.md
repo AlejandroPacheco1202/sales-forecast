@@ -192,11 +192,11 @@ jupyter lab 05_presupuesto_final.ipynb
 
 ## 🔐 Aviso de Anonimización
 
-**Todos los valores en este repositorio han sido escalados por un factor de 0,2 (÷5) por confidencialidad.**
+**Todos los valores en este repositorio han sido escalados por un factor de ### por confidencialidad.**
 
-- Nombres de tiendas: Ugarteche → StoreA, Sinclair → StoreB
-- Productos: Medialuna Dulce → Product001, etc.
-- Cantidades: todas multiplicadas por 0,2
+- Nombres de tiendas:  StoreA, StoreB
+- Productos: Product001, etc.
+- Cantidades: todas multiplicadas por ###
 
 **¿Por qué escalar?** Los números reales de unidades son sensibles. El escalado preserva:
 - ✓ Proporciones relativas (Producto A sigue siendo 80% del volumen)
