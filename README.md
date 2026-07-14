@@ -67,7 +67,7 @@ Factor estacional = ventas(mes en 2025) / promedio(mayo-junio 2025)
 - Octubre: ×0,98 (recuperación)
 - Noviembre–diciembre: ×0,95–0,85 (cierre de año)
 
-Se calcula **por familia de producto** para que productos nuevos hereden la estacionalidad de su categoría. Se acota a [0,4, 2,5] para evitar valores extremos.
+Se calcula **por familia de producto** para que productos nuevos hereden la estacionalidad de su categoría.
 
 #### 3. **Timing: Distribución Diaria** (¿Cuándo dentro del mes?)
 
@@ -77,7 +77,7 @@ ventas_diaria = total_mensual × (predicción_modelo_para_este_día / Σ predicc
 
 **Modelo:** Gradient Boosting Regressor (pérdida Poisson)
 - Entrenado con datos históricos de enero 2025 – junio 2026 (16 meses de datos diarios)
-- 146.664 filas incluyendo ceros (53% de los días no hubo venta para un SKU dado)
+- 146.664 filas incluyendo ceros (53% de los días no hubo venta para un SKU dado. Dado que la demanda de algunos productos es intermintente, hubo que rellenar con ceros para evitar el sesgo positivo)
 - Features principales:
   - `roll28`: media de los últimos 28 días (persistencia del nivel)
   - `dow_mean4`: media del mismo día de semana en las últimas 4 semanas (patrón semanal)
