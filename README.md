@@ -164,7 +164,7 @@ conda install pandas openpyxl scikit-learn matplotlib seaborn jupyter
 ```
 
 ### Ejecutar el Pipeline Completo
-
+(los archivos ypynb fueron pasados a HTML exclusiva visualización)
 ```bash
 jupyter lab 01_carga_limpieza.ipynb
 # Ejecutar todas las celdas (Shift+Enter)
